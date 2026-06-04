@@ -158,84 +158,9 @@ body {
   padding: calc(var(--sat) + 14px) var(--sp2) 14px;
   border-bottom-left-radius: 20px;
   border-bottom-right-radius: 20px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.35), 0 1px 4px rgba(0,0,0,0.15);
-  transition: padding 0.35s cubic-bezier(0.4,0,0.2,1),
-              border-radius 0.35s cubic-bezier(0.4,0,0.2,1);
-  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.12);
 }
 
-/* Estado compacto */
-.today-panel.compact {
-  padding: calc(var(--sat) + 6px) var(--sp2) 6px;
-  border-bottom-left-radius: 14px;
-  border-bottom-right-radius: 14px;
-}
-
-/* Mini bar */
-.mini-bar {
-  overflow: hidden;
-  max-height: 0;
-  opacity: 0;
-  transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1),
-              opacity 0.25s ease;
-}
-.today-panel.compact .mini-bar {
-  max-height: 40px;
-  opacity: 1;
-}
-.mini-accent {
-  height: 2px; width: 100%; margin-bottom: 6px;
-  border-radius: 2px;
-  transition: background 0.4s ease;
-}
-.mini-content {
-  display: flex; align-items: center; gap: 8px;
-  padding: 0 2px;
-}
-.mini-day {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 11px; font-weight: 700; letter-spacing: 1px;
-  color: #999; text-transform: uppercase; flex-shrink: 0;
-}
-.mini-event {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 13px; font-weight: 700; color: #111;
-  flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  letter-spacing: 0.2px;
-}
-.mini-time {
-  font-size: 11px; font-weight: 500; color: #888;
-  flex-shrink: 0;
-}
-
-/* Conteúdo completo */
-.panel-full {
-  overflow: hidden;
-  max-height: 600px;
-  opacity: 1;
-  transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1),
-              opacity 0.3s ease;
-}
-.today-panel.compact .panel-full {
-  max-height: 0;
-  opacity: 0;
-}
-
-/* Filtros: fade-out ao compactar */
-#filters-section {
-  overflow: hidden;
-  max-height: 200px;
-  opacity: 1;
-  transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1),
-              opacity 0.25s ease,
-              margin-top 0.3s ease;
-}
-.today-panel.compact #filters-section {
-  max-height: 0;
-  opacity: 0;
-  margin-top: 0;
-  pointer-events: none;
-}
 
 /* Faixa de cor da competição do dia */
 .today-accent {
@@ -912,18 +837,7 @@ body {
 
     <!-- TODAY PANEL -->
     <div class="today-panel" id="today-panel">
-      <!-- MINI BAR — visível só ao scrollar -->
-      <div class="mini-bar" id="mini-bar">
-        <div class="mini-accent" id="mini-accent"></div>
-        <div class="mini-content" id="mini-content">
-          <span class="mini-day" id="mini-day">—</span>
-          <span class="mini-event" id="mini-event">—</span>
-          <span class="mini-time" id="mini-time">—</span>
-        </div>
-      </div>
 
-      <!-- CONTEÚDO COMPLETO -->
-      <div class="panel-full" id="panel-full">
         <div class="today-accent" id="today-accent"></div>
         <div class="today-inner">
           <div class="today-left">
@@ -952,10 +866,11 @@ body {
           <button class="fb on" data-cat="all" onclick="toggleF('all')">Todos os eventos</button>
         </div>
       </div>
-      </div><!-- /panel-full -->
     </div>
 
-    <div id="cal" style="padding-top:12px"></div>
+    <!-- ÂNCORA DO FAB: quando sair da tela, FAB aparece -->
+    <div id="fab-anchor" style="height:1px;margin-top:4px"></div>
+    <div id="cal" style="padding-top:8px"></div>
 
   </div>
 
@@ -1893,61 +1808,20 @@ document.querySelector('.fb[data-cat="all"]').style.cssText='background:#111111;
 render();
 renderTodayPanel();
 
-// ── SCROLL COLLAPSE ──
+// ── FAB via IntersectionObserver na âncora ──
 (function(){
-  const panel = document.getElementById('today-panel');
-  const miniAccent = document.getElementById('mini-accent');
-  const miniDay = document.getElementById('mini-day');
-  const miniEvent = document.getElementById('mini-event');
-  const miniTime = document.getElementById('mini-time');
-  const THRESH_DOWN = 150;
-  const DELTA = 5;
-  let ticking = false;
-  let lastY = 0;
-  let isCompact = false;
-
-  function populateMini(){
-    const d = TODAY;
-    if(!d){ if(miniEvent) miniEvent.textContent='Junho 2026'; return; }
-    const evts = EV[d]||[];
-    const best = evts.find(e=>e.brasil) || evts.find(e=>e.destaque) || evts[0];
-    if(!best){ if(miniEvent) miniEvent.textContent='Dia livre'; return; }
-    const wd = new Date(2026,5,d).getDay();
-    const WDP = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-    if(miniDay) miniDay.textContent = WDP[wd]+' '+d+'/06';
-    const shortTitle = best.title.replace(/^(🏆\s*)?(Grupo\s+\w+:\s*)/i,'').replace(/^Amistoso\s·\s/,'');
-    if(miniEvent) miniEvent.textContent = (best.brasil?'🇧🇷 ':best.destaque?'★ ':'')+shortTitle;
-    if(miniTime) miniTime.textContent = best.time||'';
-    const accentColor = best.brasil
-      ? (best.cat==='vnl'?'linear-gradient(90deg,#00B4CC,#FFE600)':'linear-gradient(90deg,#009c3b,#FFE600,#E8001D)')
-      : (DS[best.cat]?.color||'#888');
-    const acEl = document.getElementById('today-accent');
-    if(miniAccent) miniAccent.style.background = acEl ? acEl.style.background : accentColor;
-  }
-
-  function onScroll(){
-    if(ticking) return;
-    ticking = true;
-    requestAnimationFrame(()=>{
-      const y = window.scrollY;
-      const delta = y - lastY;
-      if(delta > DELTA && y > THRESH_DOWN && !isCompact){
-        isCompact = true;
-        panel.classList.add('compact');
-        updateFab(true);
-      } else if(delta < -DELTA && isCompact){
-        isCompact = false;
-        panel.classList.remove('compact');
-        updateFab(false);
-      }
-      lastY = y;
-      ticking = false;
-    });
-  }
-
-  populateMini();
-  lastY = window.scrollY;
-  window.addEventListener('scroll', onScroll, {passive:true});
+  const anchor = document.getElementById('fab-anchor');
+  if(!anchor) return;
+  const observer = new IntersectionObserver(
+    (entries) => {
+      const visible = entries[0].isIntersecting;
+      // Quando âncora sai da tela (not intersecting) → FAB aparece
+      // Quando âncora volta → FAB some e fecha painel
+      updateFab(!visible);
+    },
+    { threshold: 0, rootMargin: '0px' }
+  );
+  observer.observe(anchor);
 })();
 
 
